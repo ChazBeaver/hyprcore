@@ -4,7 +4,9 @@ IFS=$'\n\t'
 
 APPDOTS_REPO="https://github.com/ChazBeaver/appdots"
 HYPRDOTS_REPO="https://github.com/ChazBeaver/hyprdots"
-CLONE_BASE_DIR="$HOME/Projects"
+
+# Always clone here
+CLONE_BASE_DIR="$HOME/Projects/home"
 
 uses_hyprland() {
   [[ -d "$HOME/.config/hypr" ]] && return 0
@@ -17,25 +19,30 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || { echo "❌ Missing required command: $1"; exit 1; }
 }
 
-repo_name() { basename "$1"; }
+repo_name() {
+  local base
+  base="$(basename "$1")"
+  echo "${base%.git}"
+}
 
 ensure_repo() {
   local url="$1"
   local name dest
+
   name="$(repo_name "$url")"
   dest="$CLONE_BASE_DIR/$name"
 
+  # Always ensure target directory exists
   mkdir -p "$CLONE_BASE_DIR"
 
   if [[ -d "$dest/.git" ]]; then
     echo "🔁 Updating $name" >&2
     ( cd "$dest" && git pull --ff-only ) >&2
   else
-    echo "⬇️  Cloning $name" >&2
+    echo "⬇️  Cloning $name → $dest" >&2
     git clone "$url" "$dest" >&2
   fi
 
-  # IMPORTANT: only print the path on stdout
   echo "$dest"
 }
 
