@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# --------------------------------------
+# Full System Upgrade and Pkgs Installs
+# --------------------------------------
+
 PACMAN_PKGS=(
   keepassxc
   yazi
   zsh
   cava
   cmatrix
+  # cbonsai
 )
 
 need_root() {
