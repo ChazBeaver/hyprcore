@@ -5,6 +5,8 @@ PACMAN_PKGS=(
   keepassxc
   yazi
   zsh
+  cava
+  cmatrix
 )
 
 need_root() {
