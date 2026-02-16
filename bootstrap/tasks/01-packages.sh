@@ -16,7 +16,7 @@ PACMAN_PKGS=(
   cmatrix
   ttf-firacode-nerd
   zsh-autocomplete
-  zsh-autosuggestions
+  # zsh-autosuggestions
   # cbonsai
 )
 
