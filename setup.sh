@@ -9,7 +9,8 @@ IFS=$'\n\t'
 #   1) Ensures appdots + hyprdots are cloned/updated into ~/Projects/home
 #   2) Runs backup.sh in each repo (so existing config becomes *.bak and won't block symlinks)
 #   3) Runs install.sh in each repo
-#   4) Runs HyprCore bootstrap/bootstrap.sh at the end (if present)
+#   4) Ensures HYPR_CORE_DIR + alias exist in ~/.dotfiles-env.sh
+#   5) Runs HyprCore bootstrap/bootstrap.sh at the end (if present)
 #
 # This file lives at HyprCore repo root.
 # ============================================================================
@@ -23,6 +24,10 @@ HYPRDOTS_REPO="https://github.com/ChazBeaver/hyprdots"
 # Always clone here
 CLONE_BASE_DIR="$HOME/Projects/home"
 
+# Dotfiles env handling (match appdots behavior)
+ENV_FILE="$HOME/.dotfiles-env.sh"
+VAR_NAME="HYPR_CORE_DIR"
+
 uses_hyprland() {
   [[ -d "$HOME/.config/hypr" ]] && return 0
   command -v Hyprland >/dev/null 2>&1 && return 0
@@ -31,7 +36,10 @@ uses_hyprland() {
 }
 
 need_cmd() {
-  command -v "$1" >/dev/null 2>&1 || { echo "❌ Missing required command: $1"; exit 1; }
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "❌ Missing required command: $1"
+    exit 1
+  }
 }
 
 repo_name() {
@@ -50,11 +58,11 @@ ensure_repo() {
   mkdir -p "$CLONE_BASE_DIR"
 
   if [[ -d "$dest/.git" ]]; then
-    echo "🔁 Updating $name" >&2
-    ( cd "$dest" && git pull --ff-only ) >&2
+    echo "🔁 Updating $name"
+    ( cd "$dest" && git pull --ff-only )
   else
-    echo "⬇️  Cloning $name → $dest" >&2
-    git clone "$url" "$dest" >&2
+    echo "⬇️  Cloning $name → $dest"
+    git clone "$url" "$dest"
   fi
 
   echo "$dest"
@@ -73,6 +81,30 @@ run_script() {
   echo "▶️  $(basename "$repo_path")/$script"
   ( cd "$repo_path" && bash "$script" )
 }
+
+# ----------------------------------------------------------------------------
+# Match appdots install.sh behavior for env + alias
+# ----------------------------------------------------------------------------
+ensure_dotfiles_env_entry() {
+  local script_dir="$HYPRCORE_ROOT"
+
+  mkdir -p "$(dirname "$ENV_FILE")"
+
+  # Append export if missing
+  grep -q "$VAR_NAME=" "$ENV_FILE" 2>/dev/null || \
+    echo "export $VAR_NAME=\"$script_dir\"" >> "$ENV_FILE"
+
+  # Append alias if missing
+  grep -q 'alias hyprcore=' "$ENV_FILE" 2>/dev/null || \
+    echo 'alias hyprcore="cd \$HYPR_CORE_DIR"' >> "$ENV_FILE"
+
+  # shellcheck disable=SC1090
+  source "$ENV_FILE" || true
+}
+
+# ----------------------------------------------------------------------------
+# Begin execution
+# ----------------------------------------------------------------------------
 
 need_cmd git
 need_cmd bash
@@ -97,7 +129,7 @@ fi
 # 1) BACKUP FIRST
 # --------------------------
 echo
-echo "🧯 Step 1: Backup (so existing configs move to *.bak and won't block symlinks)"
+echo "🧯 Step 1: Backup (existing configs → *.bak)"
 run_script "$APP_PATH" backup.sh
 
 if [[ -n "${HYPR_PATH:-}" ]]; then
@@ -126,16 +158,23 @@ else
 fi
 
 # --------------------------
-# 3) FINAL: HyprCore bootstrap tasks
+# 3) Register HyprCore env
+# --------------------------
+echo
+echo "🧷 Step 3: Register HYPR_CORE_DIR in ~/.dotfiles-env.sh"
+ensure_dotfiles_env_entry
+
+# --------------------------
+# 4) Run HyprCore bootstrap
 # --------------------------
 BOOTSTRAP_TASKS="$HYPRCORE_ROOT/bootstrap/bootstrap.sh"
 
 echo
 if [[ -f "$BOOTSTRAP_TASKS" ]]; then
-  echo "🚀 Step 3: Running HyprCore tasks: bootstrap/bootstrap.sh"
+  echo "🚀 Step 4: Running HyprCore bootstrap tasks"
   ( cd "$HYPRCORE_ROOT" && bash "./bootstrap/bootstrap.sh" )
 else
-  echo "⚠️  HyprCore tasks script not found, skipped"
+  echo "⚠️  HyprCore bootstrap script not found, skipped"
   echo "   ↳ Looked for: $BOOTSTRAP_TASKS"
 fi
 
