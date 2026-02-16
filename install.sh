@@ -2,6 +2,9 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# HyprCore repo root (directory where THIS install.sh lives)
+HYPRCORE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+
 APPDOTS_REPO="https://github.com/ChazBeaver/appdots"
 HYPRDOTS_REPO="https://github.com/ChazBeaver/hyprdots"
 
@@ -32,7 +35,6 @@ ensure_repo() {
   name="$(repo_name "$url")"
   dest="$CLONE_BASE_DIR/$name"
 
-  # Always ensure target directory exists
   mkdir -p "$CLONE_BASE_DIR"
 
   if [[ -d "$dest/.git" ]]; then
@@ -65,7 +67,8 @@ need_cmd bash
 
 echo
 echo "🧠 HyprCore Install"
-echo "Clone dir: $CLONE_BASE_DIR"
+echo "HyprCore root: $HYPRCORE_ROOT"
+echo "Clone dir:     $CLONE_BASE_DIR"
 echo
 
 APP_PATH="$(ensure_repo "$APPDOTS_REPO")"
@@ -79,6 +82,20 @@ if uses_hyprland; then
 else
   echo
   echo "ℹ️  Hyprland not detected — skipping hyprdots."
+fi
+
+# ----------------------------------------
+# Final step: run HyprCore bootstrap from HyprCore root
+# ----------------------------------------
+BOOTSTRAP_PATH="$HYPRCORE_ROOT/bootstrap/bootstrap.sh"
+
+echo
+if [[ -f "$BOOTSTRAP_PATH" ]]; then
+  echo "🚀 Final step — running HyprCore bootstrap: bootstrap/bootstrap.sh"
+  ( cd "$HYPRCORE_ROOT" && bash "./bootstrap/bootstrap.sh" )
+else
+  echo "⚠️  HyprCore bootstrap not found, skipped"
+  echo "   ↳ Looked for: $BOOTSTRAP_PATH"
 fi
 
 echo
