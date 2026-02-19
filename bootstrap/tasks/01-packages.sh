@@ -12,11 +12,12 @@ PACMAN_PKGS=(
   keepassxc
   yazi
   zsh
-  cava
-  cmatrix
   ttf-firacode-nerd
+  libreoffice-fresh
   zsh-autosuggestions
   ripgrep
+  cava
+  cmatrix
   # zsh-autocomplete
   # cbonsai
 )
