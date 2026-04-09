@@ -16,6 +16,8 @@ PACMAN_PKGS=(
   cava
   cmatrix
   ddcutil
+  # zsh-autocomplete
+  # cbonsai
 )
 
 AUR_PKGS=(
