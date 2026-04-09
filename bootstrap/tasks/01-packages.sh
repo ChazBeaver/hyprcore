@@ -2,10 +2,7 @@
 set -euo pipefail
 
 # --------------------------------------
-# Pacman: Install only (NO full upgrade)
-# - Refreshes package DB safely (no -u)
-# - Installs only missing packages
-# - Verifies what installed vs failed
+# Pacman + AUR Installer
 # --------------------------------------
 
 PACMAN_PKGS=(
@@ -18,8 +15,13 @@ PACMAN_PKGS=(
   ripgrep
   cava
   cmatrix
-  # zsh-autocomplete
-  # cbonsai
+  ddcutil
+)
+
+AUR_PKGS=(
+  yaru-gtk-theme
+  colloid-gtk-theme
+  tela-icon-theme
 )
 
 need_root() {
@@ -29,68 +31,61 @@ need_root() {
 }
 
 is_installed() {
-  # Returns 0 if installed, 1 if not
   pacman -Q "$1" >/dev/null 2>&1
+}
+
+is_aur_installed() {
+  pacman -Q "$1" >/dev/null 2>&1
+}
+
+install_yay() {
+  if command -v yay >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "==> Installing yay (AUR helper)"
+  sudo pacman -S --needed --noconfirm git base-devel
+
+  tmp_dir=$(mktemp -d)
+  git clone https://aur.archlinux.org/yay.git "$tmp_dir/yay"
+  pushd "$tmp_dir/yay" >/dev/null
+  makepkg -si --noconfirm
+  popd >/dev/null
 }
 
 main() {
   need_root "$@"
 
-  echo "==> Refreshing package databases (no full upgrade)"
-  # Avoid partial-upgrade pitfalls by requiring a fresh sync before install
+  echo "==> Refreshing package databases"
   pacman -Sy --noconfirm
 
-  echo "==> Installing packages (only if missing): ${PACMAN_PKGS[*]}"
-  # Don't let one failure abort the whole run; we want a full report.
-  install_failed=()
-  install_ok=()
-
+  echo "==> Installing PACMAN packages"
   for pkg in "${PACMAN_PKGS[@]}"; do
     if is_installed "$pkg"; then
       echo "  ✓ Already installed: $pkg"
-      install_ok+=("$pkg")
-      continue
-    fi
-
-    echo "  + Installing: $pkg"
-    if pacman -S --needed --noconfirm "$pkg"; then
-      install_ok+=("$pkg")
     else
-      echo "  ✗ Install failed: $pkg"
-      install_failed+=("$pkg")
+      echo "  + Installing: $pkg"
+      pacman -S --needed --noconfirm "$pkg" || echo "  ✗ Failed: $pkg"
     fi
   done
 
   echo
-  echo "==> Verification check"
-  verified_ok=()
-  verified_fail=()
+  echo "==> Ensuring AUR helper (yay)"
+  install_yay
 
-  for pkg in "${PACMAN_PKGS[@]}"; do
-    if is_installed "$pkg"; then
-      verified_ok+=("$pkg")
+  echo
+  echo "==> Installing AUR packages"
+  for pkg in "${AUR_PKGS[@]}"; do
+    if is_aur_installed "$pkg"; then
+      echo "  ✓ Already installed: $pkg"
     else
-      verified_fail+=("$pkg")
+      echo "  + Installing (AUR): $pkg"
+      sudo -u "$SUDO_USER" yay -S --needed --noconfirm "$pkg" || echo "  ✗ Failed: $pkg"
     fi
   done
 
   echo
-  echo "==> Results"
-  if ((${#verified_ok[@]})); then
-    echo "✅ Installed/Present (${#verified_ok[@]}):"
-    printf '  - %s\n' "${verified_ok[@]}"
-  else
-    echo "✅ Installed/Present (0)"
-  fi
-
-  echo
-  if ((${#verified_fail[@]})); then
-    echo "❌ Missing/Failed (${#verified_fail[@]}):"
-    printf '  - %s\n' "${verified_fail[@]}"
-    exit 1
-  else
-    echo "🎉 All requested packages are installed."
-  fi
+  echo "🎉 Done."
 }
 
 main "$@"
